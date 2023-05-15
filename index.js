@@ -30,14 +30,15 @@ app.get("/",cors(), (req,res) =>{
 app.post("/login", async (req,res) => {
   const JWT_secret = "secret-key";
   const loginForm = req.body.form
-  const token = jwt.sign({name:loginForm.name,email:loginForm.email}, JWT_secret, {expiresIn:'20s'})
+  const token = jwt.sign({name:loginForm.name,email:loginForm.email}, JWT_secret)
   try{
     const isCheck = await User.findOne({email:loginForm.email})
     const isCompare = await comparePassword(loginForm.password,isCheck.password)
     console.log(isCheck)
 
     if (isCheck && isCompare) {
-      isCheck.password = loginForm.password ? res.json({token:token, message:"LoginPass"}) : res.json("loginFail")
+      isCheck.password = loginForm.password ? res.json({token:token,username:isCheck.name, message:"LoginPass"}) : res.json("loginFail")
+      console.log(isCheck.name)
     }
     else{
       res.json("No user")
