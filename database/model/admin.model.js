@@ -1,7 +1,7 @@
 const mongoose=require("mongoose");
 const { Schema, model } = mongoose;
 
-const userSchema = new Schema({
+const adminSchema = new Schema({
     name: {
       type: String,
       required: true,
@@ -19,14 +19,8 @@ const userSchema = new Schema({
     level:{
       type:Number,
       default:3,
-    },
-    carPlate:{
-      type:String
-    },
-    parkingLotId:{
-      type:String
     }
   });
   
-  const User = model('User', userSchema);
-  module.exports=User;
+  const Admin = model('Admin', adminSchema);
+  module.exports=Admin;
