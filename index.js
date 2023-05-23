@@ -18,22 +18,19 @@ app.use(cors())
 const insertDefaultData = async () => { 
   const defaultParkingBuilding =[
   {
-      name:"Sunway University Parking",
-    address:"Bandar Sunway, 47500 Petaling Jaya, Selangor",
+    name:"Sunway University Parking",
+    googlePlusCode:"6PM33J83+CH",
     capacity:10,
-    availableSpace:10
   },
   {
     name:"Sunway Pyramid",
-    address:"3, Jalan PJS 11/15, Bandar Sunway, 47500 Petaling Jaya, Selangor",
+    googlePlusCode:"6PM33JC4+RG",
     capacity:10000,
-    availableSpace:10000
   },
   {
-    name:"Monash Western Car Park",
-    address:"Ss 13, 47500 Subang Jaya, Selangor",
-    capacity:300,
-    availableSpace:300
+    name:"SunU-Monash BRT PARK N RIDE",
+    googlePlusCode:"6PM33J82+68r",
+    capacity:3000,
   },
 
 ];
@@ -65,6 +62,95 @@ app.get("/carparkbuilding",cors(),async (req,res) => {
     res.status(500).json({ error: 'Failed to retrieve car park buildings' });
   }
 });
+
+app.get("/manageuser",cors(),async (req,res) => {
+  const objectIdToExclude = '6463a03128621e52009ede2d';
+  try {
+    const admin = await Admin.find({ _id: { $ne: objectIdToExclude } });
+    res.status(200).json(admin);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to retrieve car park buildings' });
+  }
+});
+
+app.delete('/deleteUserInfo/:recordId', async(req, res) => {
+  const { recordId } = req.params;
+  try {
+    const isExist = await Admin.findOne({ _id: recordId });
+    if (!isExist) {
+      return res.status(404).json({ error: 'Record not found' });
+    } else {
+      await Admin.deleteOne({ _id: recordId });
+      return res.json({ message: 'Record deleted successfully' });
+    }
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.delete('/deleteCarParkInfo/:recordId', async(req, res) => {
+  const { recordId } = req.params;
+  try {
+    const isExist = await ParkingBuilding.findOne({ _id: recordId });
+    if (!isExist) {
+      return res.status(404).json({ error: 'Record not found' });
+    } else {
+      await ParkingBuilding.deleteOne({ _id: recordId });
+      return res.json({ message: 'Record deleted successfully' });
+    }
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post("/addBuilding", async (req,res) => {
+  const addBuilding = req.body.addForm
+  console.log(addBuilding)
+  const data=new ParkingBuilding({
+    name:addBuilding.name,
+    googlePlusCode:addBuilding.googlePlusCode,
+    capacity:addBuilding.capacity
+  })
+  try{
+    const isExist = await ParkingBuilding.findOne({name:addBuilding.name})
+    console.log(isExist)
+
+    if (isExist) {
+      res.json("exist")
+    }
+    else{
+      res.json("Not Exist")
+      await data.save()
+    }
+  }
+  catch(e){
+    console.log(e)
+    res.json("fail")
+  }
+})
+
+app.post("/updateCarParkInfo", async (req,res) => {
+  const updateForm = req.body.updateInfo
+  console.log(updateForm)
+  try{
+    const isExist = await ParkingBuilding.findOne({_id:updateForm._id})
+    console.log(isExist)
+
+    if (isExist) {
+      await ParkingBuilding.updateOne({ name:updateForm.name,plusCode:updateForm.plusCode,capacity:updateForm.capacity});
+      res.json({message:"updateCarParkSuccess"})
+    }
+    else{
+      res.json("error")
+    }
+  }
+  catch(e){
+    console.log(e)
+    res.json("fail")
+  }
+})
 
 app.post("/login", async (req,res) => {
   const loginForm = req.body.form

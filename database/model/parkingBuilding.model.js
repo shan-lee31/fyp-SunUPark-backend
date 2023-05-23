@@ -6,13 +6,10 @@ const parkingBuildingSchema = new Schema({
       type: String,
       required: true,
     },
-    address: {
+    googlePlusCode: {
       type: String,
     },
     capacity:{
-      type:Number,
-    },
-    availableSpace:{
       type:Number,
     }
   });
