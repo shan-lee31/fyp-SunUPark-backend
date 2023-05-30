@@ -3,10 +3,11 @@ const cors=require("cors")
 const bcrypt = require("bcryptjs")
 const express = require("express")
 const user = require("./database/model/user.model")
-const PORT = process.env.PORT || 8000
+const PORT = process.env.PORT || 3500
 const jwt = require("jsonwebtoken")
 const Admin = require("./database/model/admin.model")
 const ParkingBuilding = require("./database/model/parkingBuilding.model")
+const ParkingLot = require("./database/model/parkingLot.model")
 
 mongoose.connect("mongodb+srv://lee:aUB9yJ4qxMDmjqnu@cluster-sunpark.ipsvmza.mongodb.net/test")
 
@@ -37,6 +38,43 @@ const insertDefaultData = async () => {
 await ParkingBuilding.create(defaultParkingBuilding);
 }
 
+const insertParkingLot = async () => { 
+  const defaultParkingLot =[
+  {
+    name:"A1",
+  },
+  {
+    name:"A2",
+  },
+  {
+    name:"A3",
+  },
+  {
+    name:"A4",
+  },
+  {
+    name:"A5",
+  },
+  {
+    name:"A6",
+  },
+  {
+    name:"A7",
+  },
+  {
+    name:"A8",
+  },
+  {
+    name:"A9",
+  },
+  {
+    name:"A10",
+  },
+
+
+];
+await ParkingLot.create(defaultParkingLot);
+}
 
 async function hashPassword(password){
   const res =  await bcrypt.hash(password,10);
@@ -52,6 +90,28 @@ app.get("/",cors(), (req,res) =>{
   res.send("hello from backend")
   insertDefaultData();
 })
+
+app.get("/parkingQrcode",cors(), (req,res) =>{
+  res.send("Qr Code")
+  insertParkingLot();
+})
+
+app.post("http://10.0.0.2:8000/parkingQrCode/get", cors(), async (req,res) => {
+  const lotId = req.body.parkingLot;
+  console.log(lotId)
+  try {
+    const isExist = await ParkingLot.findOne({ _id: lotId });
+    if (!isExist) {
+      return res.status(404).json({ error: 'Record not found' });
+    } else {
+      return res.json({ message: 'success' });
+    }
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 
 app.get("/carparkbuilding",cors(),async (req,res) => {
 
