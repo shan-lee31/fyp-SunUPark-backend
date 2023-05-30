@@ -96,9 +96,10 @@ app.get("/parkingQrcode",cors(), (req,res) =>{
   insertParkingLot();
 })
 
-app.post("http://10.0.0.2:8000/parkingQrCode/get", cors(), async (req,res) => {
+app.post("/parkingQrCode/get", cors(), async (req,res) => {
   const lotId = req.body.parkingLot;
-  console.log(lotId)
+  console.log(req.body)
+  console.log("he")
   try {
     const isExist = await ParkingLot.findOne({ _id: lotId });
     if (!isExist) {
