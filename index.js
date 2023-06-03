@@ -105,7 +105,7 @@ app.post("/parkingQrCode/get", cors(), async (req,res) => {
     if (!isExist) {
       return res.status(404).json({ error: 'Record not found' });
     } else {
-      return res.json({ message: 'success' });
+      return res.json({ message: 'success', lot:isExist.name });
     }
   } catch (error) {
     console.error(error);
