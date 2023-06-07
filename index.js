@@ -91,23 +91,63 @@ app.get("/",cors(), (req,res) =>{
   insertDefaultData();
 })
 
+
+
 app.get("/parkingQrcode",cors(), (req,res) =>{
   res.send("Qr Code")
   insertParkingLot();
 })
 
+app.get("/parkingLots",cors(),async (req,res) => {
+
+  try {
+    const parkingLots = await ParkingLot.find({isAvailable:true});
+    res.status(200).json(parkingLots);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to retrieve car park lots' });
+  }
+});
+
+app.post("/parkingQrCode/endSession" , cors() , async (req,res) => {
+  const lotId = req.body.parkingLot;
+  console.log(lotId)
+  try{
+    const isExist = await ParkingLot.findOne({ _id: lotId });
+    if (!isExist) {
+      console.log("not exist")
+      return res.status(404).json({ error: 'Record not found' });
+    } else {
+      //update lot availability
+      await ParkingLot.findByIdAndUpdate(lotId,{ isAvailable:true});
+      return res.json({ message: 'success'});
+    }
+  }
+  catch(err){
+
+  }
+})
+
 app.post("/parkingQrCode/get", cors(), async (req,res) => {
   const lotId = req.body.parkingLot;
   console.log(req.body)
-  console.log("he")
   try {
+    if (!mongoose.Types.ObjectId.isValid(lotId)){
+      return res.status(400).json({error:'Bad request'})
+    }
     const isExist = await ParkingLot.findOne({ _id: lotId });
     if (!isExist) {
+      console.log("not exist")
       return res.status(404).json({ error: 'Record not found' });
     } else {
+      if (await ParkingLot.findOne({_id: lotId, isAvailable:false})){
+        return res.json({message:'occupied'})
+      }
+      else
+      await ParkingLot.findByIdAndUpdate(lotId,{ isAvailable:false});
       return res.json({ message: 'success', lot:isExist.name });
     }
-  } catch (error) {
+  }
+  catch(err){
     console.error(error);
     return res.status(500).json({ error: 'Internal server error' });
   }
