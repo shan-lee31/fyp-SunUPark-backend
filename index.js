@@ -88,20 +88,33 @@ async function comparePassword(userPassword,hashPassword){
 
 app.get("/",cors(), (req,res) =>{
   res.send("hello from backend")
+})
+
+app.get("/parkingBuildings",cors(), (req,res) =>{
+  res.send("parkingBuildings")
   insertDefaultData();
 })
 
 
-
 app.get("/parkingQrcode",cors(), (req,res) =>{
   res.send("Qr Code")
-  insertParkingLot();
+  // insertParkingLot();
 })
 
-app.get("/parkingLots",cors(),async (req,res) => {
+app.get("/availableParkingLots",cors(),async (req,res) => {
 
   try {
     const parkingLots = await ParkingLot.find({isAvailable:true});
+    res.status(200).json(parkingLots);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to retrieve car park lots' });
+  }
+});
+
+app.get("/parkingLotsStatus",cors(),async (req,res) => {
+
+  try {
+    const parkingLots = await ParkingLot.find({}).sort({name:1});
     res.status(200).json(parkingLots);
   } catch (error) {
     res.status(500).json({ error: 'Failed to retrieve car park lots' });
@@ -123,13 +136,13 @@ app.post("/parkingQrCode/endSession" , cors() , async (req,res) => {
     }
   }
   catch(err){
-
+    res.status(500).json({ error: 'Failed' });
   }
 })
 
 app.post("/parkingQrCode/get", cors(), async (req,res) => {
   const lotId = req.body.parkingLot;
-  console.log(req.body)
+  console.log(lotId)
   try {
     if (!mongoose.Types.ObjectId.isValid(lotId)){
       return res.status(400).json({error:'Bad request'})
