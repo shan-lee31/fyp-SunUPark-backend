@@ -20,17 +20,23 @@ const insertDefaultData = async () => {
   const defaultParkingBuilding =[
   {
     name:"Sunway University Parking",
-    googlePlusCode:"6PM33J83+CH",
+    googlePlusCode:"6PM33J83+CH", 
+    latitude:3.0673552584945933,
+    longitude:101.6038946395742,
     capacity:10,
   },
   {
     name:"Sunway Pyramid",
     googlePlusCode:"6PM33JC4+RG",
+    longitude:3.072255111569047, 
+    latitude:101.60639913957425,
     capacity:10000,
   },
   {
     name:"SunU-Monash BRT PARK N RIDE",
     googlePlusCode:"6PM33J82+68r",
+    latitude:3.0658264755925493,
+    longitude:101.60212492127722,
     capacity:3000,
   },
 

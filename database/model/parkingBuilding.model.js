@@ -9,6 +9,12 @@ const parkingBuildingSchema = new Schema({
     googlePlusCode: {
       type: String,
     },
+    latitude: {
+      type: Number,
+    },
+    longitude: {
+      type: Number,
+    },
     capacity:{
       type:Number,
     }
