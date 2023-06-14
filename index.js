@@ -28,8 +28,8 @@ const insertDefaultData = async () => {
   {
     name:"Sunway Pyramid",
     googlePlusCode:"6PM33JC4+RG",
-    longitude:3.072255111569047, 
-    latitude:101.60639913957425,
+    latitude:3.072255111569047, 
+    longitude:101.60639913957425,
     capacity:10000,
   },
   {
