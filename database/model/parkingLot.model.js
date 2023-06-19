@@ -6,6 +6,10 @@ const parkingLotSchema = new Schema({
       type: String,
       required: true,
     },
+    type: {
+        type:String,
+        required: true
+    },
     user:{
         type:Object
     },

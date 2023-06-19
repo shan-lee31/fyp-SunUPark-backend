@@ -8,6 +8,7 @@ const jwt = require("jsonwebtoken")
 const Admin = require("./database/model/admin.model")
 const ParkingBuilding = require("./database/model/parkingBuilding.model")
 const ParkingLot = require("./database/model/parkingLot.model")
+const User = require("./database/model/user.model")
 
 mongoose.connect("mongodb+srv://lee:aUB9yJ4qxMDmjqnu@cluster-sunpark.ipsvmza.mongodb.net/test")
 
@@ -48,33 +49,43 @@ const insertParkingLot = async () => {
   const defaultParkingLot =[
   {
     name:"A1",
+    type:"reserved",
   },
   {
     name:"A2",
+    type:"reserved",
   },
   {
     name:"A3",
+    type:"reserved",
   },
   {
     name:"A4",
+    type:"normal"
   },
   {
     name:"A5",
+    type:"normal"
   },
   {
     name:"A6",
+    type:"normal"
   },
   {
     name:"A7",
+    type:"normal"
   },
   {
     name:"A8",
+    type:"normal"
   },
   {
     name:"A9",
+    type:"normal"
   },
   {
     name:"A10",
+    type:"normal"
   },
 
 
@@ -104,14 +115,24 @@ app.get("/parkingBuildings",cors(), (req,res) =>{
 
 app.get("/parkingQrcode",cors(), (req,res) =>{
   res.send("Qr Code")
-  // insertParkingLot();
+  insertParkingLot();
 })
 
 app.get("/availableParkingLots",cors(),async (req,res) => {
 
   try {
-    const parkingLots = await ParkingLot.find({isAvailable:true});
+    const parkingLots = await ParkingLot.find({type:"normal",isAvailable:true});
     res.status(200).json(parkingLots);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to retrieve car park lots' });
+  }
+});
+
+app.get("/availableRerservedParkingLots",cors(),async (req,res) => {
+
+  try {
+    const reservedParkingLots = await ParkingLot.find({type:"reserved",isReserved:false});
+    res.status(200).json(reservedParkingLots);
   } catch (error) {
     res.status(500).json({ error: 'Failed to retrieve car park lots' });
   }
@@ -172,6 +193,15 @@ app.post("/parkingQrCode/get", cors(), async (req,res) => {
   }
 });
 
+app.get("/reservedparking",cors(),async (req,res) => {
+
+  try {
+    const reservedParking = await ParkingLot.find({type:"reserved"}).sort({name:1});
+    res.status(200).json(reservedParking);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to retrieve reserved parking' });
+  }
+});
 
 app.get("/carparkbuilding",cors(),async (req,res) => {
 
@@ -276,6 +306,27 @@ app.post("/login", async (req,res) => {
   const loginForm = req.body.form
   try{
     const isCheck = await Admin.findOne({email:loginForm.email})
+    const isCompare = await comparePassword(loginForm.password,isCheck.password)
+    console.log(isCheck)
+
+    if (isCheck && isCompare) {
+      isCheck.password = loginForm.password ? res.json({level:isCheck.level,username:isCheck.name, message:"LoginPass"}) : res.json("loginFail")
+      console.log(isCheck.name)
+    }
+    else{
+      res.json("No user")
+    }
+  }
+  catch(e){
+    console.log(e)
+    res.json("fail")
+  }
+})
+
+app.post("/login/user", async (req,res) => {
+  const loginForm = req.body.form
+  try{
+    const isCheck = await User.findOne({email:loginForm.email})
     const isCompare = await comparePassword(loginForm.password,isCheck.password)
     console.log(isCheck)
 
