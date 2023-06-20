@@ -18,7 +18,7 @@ const adminSchema = new Schema({
     },
     level:{
       type:Number,
-      default:3,
+      default:2,
     }
   });
   

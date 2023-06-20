@@ -6,6 +6,9 @@ const userSchema = new Schema({
       type: String,
       required: true,
     },
+    phoneNumber:{
+      type: String
+    },
     email: {
       type: String,
       minLength: 10,
@@ -24,7 +27,8 @@ const userSchema = new Schema({
       type:String
     },
     parkingLotId:{
-      type:String
+      type:String,
+      default:""
     }
   });
   

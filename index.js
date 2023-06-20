@@ -344,6 +344,35 @@ app.post("/login/user", async (req,res) => {
   }
 })
 
+app.post("/sign-up/user",async(req,res) => {
+  const form = req.body.form
+  const data=new User({
+    name:form.name,
+    email:form.email,
+    phone:form.phone,
+    carPlate:form.plateNumber,
+    password:await hashPassword(form.password),
+    level:3
+  })
+
+  try{
+    const check =  await User.findOne({email:form.email})
+
+    if(check){
+      res.json("exist")
+    }
+    else{
+      res.json("Not Exist")
+      console.log("is here")
+      await data.save()
+    }
+  }
+  catch(e){
+    console.log(e)
+    res.json("fail")
+  }
+})
+
 app.post("/sign-up",async(req,res) => {
   const form = req.body.form
   const data=new Admin({
