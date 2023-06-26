@@ -1,27 +1,29 @@
-const mongoose=require("mongoose");
+const mongoose = require("mongoose");
 const { Schema, model } = mongoose;
 
 const reservationSchema = new Schema({
-    name: {
-      type: String,
-      required: true,
-    },
-    user:{
-        type:Object
-    },
-    parkingLot:{
-        type:Object,
-    },
-    carPlate:{
-        type:String
-      },
-      startTime:{
-        type:Date,
-      },
-      endTime:{
-        type:Date,
-      }
-  });
-  
-  const Reservation = model('reservation', reservationSchema);
-  module.exports= Reservation;
+  parkingLotName: {
+    type: String,
+    required: true,
+  },
+  user: {
+    type: Object,
+  },
+  reservedAt: {
+    type: String,
+  },
+  carPlate: {
+    type: String,
+  },
+  approvalStatus: {
+    type: String,
+    default: "-",
+  },
+  isReserved: {
+    type: Boolean,
+    default: false,
+  },
+});
+
+const Reservation = model("reservation", reservationSchema);
+module.exports = Reservation;

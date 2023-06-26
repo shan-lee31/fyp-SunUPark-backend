@@ -9,6 +9,7 @@ const Admin = require("./database/model/admin.model");
 const ParkingBuilding = require("./database/model/parkingBuilding.model");
 const ParkingLot = require("./database/model/parkingLot.model");
 const User = require("./database/model/user.model");
+const Reservation = require("./database/model/reservation.model");
 
 mongoose.connect(
   "mongodb+srv://lee:aUB9yJ4qxMDmjqnu@cluster-sunpark.ipsvmza.mongodb.net/test"
@@ -49,43 +50,47 @@ const insertDefaultData = async () => {
 const insertParkingLot = async () => {
   const defaultParkingLot = [
     {
-      name: "A1",
-      type: "reserved",
+      name: "R-1",
+      type: "reserveParking",
     },
     {
-      name: "A2",
-      type: "reserved",
+      name: "R-2",
+      type: "reserveParking",
     },
     {
-      name: "A3",
-      type: "reserved",
+      name: "R-3",
+      type: "reserveParking",
     },
     {
-      name: "A4",
+      name: "Zone A - 1",
       type: "normal",
     },
     {
-      name: "A5",
+      name: "Zone A - 2",
       type: "normal",
     },
     {
-      name: "A6",
+      name: "Zone A - 3",
       type: "normal",
     },
     {
-      name: "A7",
+      name: "Zone A - 4",
       type: "normal",
     },
     {
-      name: "A8",
+      name: "Zone B - 1",
       type: "normal",
     },
     {
-      name: "A9",
+      name: "Zone B - 2",
       type: "normal",
     },
     {
-      name: "A10",
+      name: "Zone B - 3",
+      type: "normal",
+    },
+    {
+      name: "Zone B - 4",
       type: "normal",
     },
   ];
@@ -128,10 +133,10 @@ app.get("/availableParkingLots", cors(), async (req, res) => {
   }
 });
 
-app.get("/availableRerservedParkingLots", cors(), async (req, res) => {
+app.get("/availableReserveParkingLots", cors(), async (req, res) => {
   try {
     const reservedParkingLots = await ParkingLot.find({
-      type: "reserved",
+      type: "reserveParking",
       isReserved: false,
     });
     res.status(200).json(reservedParkingLots);
@@ -146,6 +151,34 @@ app.get("/parkingLotsStatus", cors(), async (req, res) => {
     res.status(200).json(parkingLots);
   } catch (error) {
     res.status(500).json({ error: "Failed to retrieve car park lots" });
+  }
+});
+
+app.post("/reservation", cors(), async (req, res) => {
+  const details = req.body.allReservationDetails;
+  console.log(details);
+  const data = new Reservation({
+    approvalStatus: details.chosenLotStatus,
+    reservedAt: details.reservedAt,
+    user: details.studentName,
+    carPlate: details.carPlate,
+    parkingLotName: details.chosenLot,
+  });
+  try {
+    const isExist = await ParkingLot.findOne({
+      name: details.chosenLot,
+    });
+    console.log(isExist);
+    if (isExist) {
+      await data.save();
+      res.json("updated");
+    } else {
+      console.log("error");
+      return res.json({ message: "failed" });
+    }
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error: "Failed" });
   }
 });
 
@@ -190,16 +223,18 @@ app.post("/parkingQrCode/get", cors(), async (req, res) => {
   }
 });
 
-app.get("/reservedparking", cors(), async (req, res) => {
-  try {
-    const reservedParking = await ParkingLot.find({ type: "reserved" }).sort({
-      name: 1,
-    });
-    res.status(200).json(reservedParking);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to retrieve reserved parking" });
-  }
-});
+// app.get("/reservedparking", cors(), async (req, res) => {
+//   try {
+//     const reservedParking = await ParkingLot.find({
+//       type: "reservedParking",
+//     }).sort({
+//       name: 1,
+//     });
+//     res.status(200).json(reservedParking);
+//   } catch (error) {
+//     res.status(500).json({ error: "Failed to retrieve reserved parking" });
+//   }
+// });
 
 app.get("/carparkbuilding", cors(), async (req, res) => {
   try {
@@ -299,6 +334,29 @@ app.post("/updateCarParkInfo", async (req, res) => {
   }
 });
 
+app.post("/update-user-info", async (req, res) => {
+  const updateForm = req.body.editForm;
+  console.log(updateForm);
+  try {
+    const isExist = await User.findOne({ email: updateForm.email });
+    console.log(isExist);
+
+    if (isExist) {
+      await User.updateOne({
+        name: updateForm.name,
+        carPlate: updateForm.carPlate,
+        phoneNumber: updateForm.phoneNumber,
+      });
+      res.json({ message: "updateCarParkSuccess" });
+    } else {
+      res.json("error");
+    }
+  } catch (e) {
+    console.log(e);
+    res.json("fail");
+  }
+});
+
 app.post("/login", async (req, res) => {
   const loginForm = req.body.form;
   try {
@@ -339,20 +397,44 @@ app.post("/login/user", async (req, res) => {
     );
 
     if (isCheck && isCompare) {
-      isCheck.password = loginForm.password
-        ? res.json({
-            email: isCheck.email,
-            level: isCheck.level,
-            name: isCheck.name,
-            carPlate: isCheck.carPlate,
-            parkingLot: isCheck.parkingLotId,
-            phone: isCheck.phoneNumber,
-            message: "LoginPass",
-          })
-        : res.json("loginFail");
+      res.json({
+        email: isCheck.email,
+        level: isCheck.level,
+        name: isCheck.name,
+        carPlate: isCheck.carPlate,
+        parkingLot: isCheck.parkingLotId,
+        phone: isCheck.phoneNumber,
+        reservedParkingLotId: isCheck.parkingLotId,
+        message: "LoginPass",
+      });
       console.log(isCheck.name);
-    } else {
+    } else if (!isCheck) {
       res.json("No user");
+    } else {
+      res.json("loginFail");
+    }
+  } catch (e) {
+    console.log(e);
+    res.json("fail");
+  }
+});
+
+app.post("/user-reset-password", async (req, res) => {
+  const form = req.body.resetPasswordForm;
+  console.log(form);
+
+  try {
+    const check = await User.findOne({ email: form.email });
+    const isCompare = await comparePassword(form.password, check.password);
+    console.log("check", check);
+    console.log("isCompare", isCompare);
+    if (check && isCompare) {
+      res.json("same password");
+    } else {
+      await User.updateOne({
+        password: await hashPassword(form.password),
+      });
+      res.json({ message: "updatePasswordSuccess" });
     }
   } catch (e) {
     console.log(e);
@@ -368,6 +450,8 @@ app.post("/sign-up/user", async (req, res) => {
     email: form.email,
     phoneNumber: form.phone,
     carPlate: form.carPlate,
+    parkingLotId: "",
+    reservedParkingLotId: "",
     password: await hashPassword(form.password),
     level: 3,
   });
