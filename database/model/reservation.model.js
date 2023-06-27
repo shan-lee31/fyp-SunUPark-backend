@@ -6,8 +6,11 @@ const reservationSchema = new Schema({
     type: String,
     required: true,
   },
+  user_id: {
+    type: String,
+  },
   user: {
-    type: Object,
+    type: String,
   },
   reservedAt: {
     type: String,

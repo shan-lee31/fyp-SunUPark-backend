@@ -19,6 +19,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cors());
+let countReserveRequest = 0;
 
 const insertDefaultData = async () => {
   const defaultParkingBuilding = [
@@ -133,6 +134,27 @@ app.get("/availableParkingLots", cors(), async (req, res) => {
   }
 });
 
+app.get("/get-admin-home-data", cors(), async (req, res) => {
+  try {
+    const parkingLots = await ParkingLot.find({
+      type: "normal",
+      isAvailable: true,
+    });
+    const reserveRequest = await Reservation.find({
+      approvalStatus: "pending",
+    });
+    const users = await User.find({});
+
+    res.status(200).json({
+      availableLots: parkingLots.length,
+      reserveRequest: reserveRequest.length,
+      users: users.length,
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to retrieve car park lots" });
+  }
+});
+
 app.get("/availableReserveParkingLots", cors(), async (req, res) => {
   try {
     const reservedParkingLots = await ParkingLot.find({
@@ -154,10 +176,86 @@ app.get("/parkingLotsStatus", cors(), async (req, res) => {
   }
 });
 
+app.post("/rejectReservation", async (req, res) => {
+  const reservationDetails = req.body.selectedReservation;
+  try {
+    const isExist = await Reservation.findOne({
+      parkingLotName: reservationDetails.lotName,
+    });
+    if (isExist) {
+      await Reservation.updateOne(
+        { parkingLotName: reservationDetails.lotName },
+        { approvalStatus: "REJECTED", isReserved: false }
+      );
+      return res.json({ data: reservationDetails, message: "rejected" });
+    }
+  } catch (error) {
+    console.log("error");
+  }
+});
+
+app.post("/approveReservation", async (req, res) => {
+  const reservationDetails = req.body.selectedReservation;
+  const userId = reservationDetails.user_id;
+  console.log(reservationDetails);
+  try {
+    const isExist = await Reservation.findOne({
+      parkingLotName: reservationDetails.lotName,
+    });
+    if (isExist) {
+      await Reservation.updateOne(
+        { parkingLotName: reservationDetails.lotName },
+        { approvalStatus: "APPROVED", isReserved: true }
+      );
+      // await User.updateOne(
+      //   { _id: userId },
+      //   { reservedParkingLotId: reservationDetails.lotName }
+      // );
+      // await ParkingLot.updateOne(
+      //   { name: reservationDetails.lotName },
+      //   { isReserved: true }
+      // );
+
+      return res.json({ data: reservationDetails, message: "success" });
+    }
+  } catch (error) {
+    console.log("error");
+  }
+});
+
+app.get("/retrieveApprovedReservation", cors(), async (req, res) => {
+  try {
+    const approved = await Reservation.find({ approvalStatus: "APPROVED" });
+    res.status(200).json(approved);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to retrieve reservations" });
+  }
+});
+
+app.get("/retrieveRejectedReservation", cors(), async (req, res) => {
+  try {
+    const rejected = await Reservation.find({ approvalStatus: "REJECTED" });
+    res.status(200).json(rejected);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to retrieve reservations" });
+  }
+});
+
+app.get("/retrieveReservation", cors(), async (req, res) => {
+  try {
+    const reservations = await Reservation.find({ approvalStatus: "pending" });
+    res.status(200).json(reservations);
+    console.log(reservations);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to retrieve reservations" });
+  }
+});
+
 app.post("/reservation", cors(), async (req, res) => {
   const details = req.body.allReservationDetails;
   console.log(details);
   const data = new Reservation({
+    user_id: details.id,
     approvalStatus: details.chosenLotStatus,
     reservedAt: details.reservedAt,
     user: details.studentName,
@@ -398,6 +496,7 @@ app.post("/login/user", async (req, res) => {
 
     if (isCheck && isCompare) {
       res.json({
+        id: isCheck._id,
         email: isCheck.email,
         level: isCheck.level,
         name: isCheck.name,
@@ -463,6 +562,7 @@ app.post("/sign-up/user", async (req, res) => {
       res.json("exist");
     } else {
       res.json({
+        id: data._id,
         email: data.email,
         level: data.level,
         name: data.name,
