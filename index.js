@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { ObjectId } = require("mongodb");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const express = require("express");
@@ -169,23 +170,47 @@ app.get("/availableReserveParkingLots", cors(), async (req, res) => {
 
 app.get("/parkingLotsStatus", cors(), async (req, res) => {
   try {
-    const parkingLots = await ParkingLot.find({}).sort({ name: 1 });
+    const parkingLots = await ParkingLot.find({ type: "normal" }).sort({
+      name: 1,
+    });
     res.status(200).json(parkingLots);
   } catch (error) {
     res.status(500).json({ error: "Failed to retrieve car park lots" });
   }
 });
 
+app.post("/cancelReservation", async (req, res) => {
+  const reservationDetails = req.body.value;
+  console.log(reservationDetails);
+  try {
+    const isExist = await Reservation.findOne({
+      parkingLotName: reservationDetails,
+    });
+    if (isExist) {
+      await Reservation.updateOne(
+        { parkingLotName: reservationDetails },
+        { approvalStatus: "CANCELLED", isReserved: false }
+      );
+      return res.json({ message: "cancelled" });
+    }
+  } catch (error) {
+    console.log("error");
+  }
+});
+
 app.post("/rejectReservation", async (req, res) => {
   const reservationDetails = req.body.selectedReservation;
+  const reason = req.body.rejectForm.reason;
+  console.log(reason);
   try {
     const isExist = await Reservation.findOne({
       parkingLotName: reservationDetails.lotName,
     });
     if (isExist) {
+      console.log(isExist);
       await Reservation.updateOne(
         { parkingLotName: reservationDetails.lotName },
-        { approvalStatus: "REJECTED", isReserved: false }
+        { approvalStatus: "REJECTED", isReserved: false, rejectReason: reason }
       );
       return res.json({ data: reservationDetails, message: "rejected" });
     }
@@ -207,19 +232,57 @@ app.post("/approveReservation", async (req, res) => {
         { parkingLotName: reservationDetails.lotName },
         { approvalStatus: "APPROVED", isReserved: true }
       );
-      // await User.updateOne(
-      //   { _id: userId },
-      //   { reservedParkingLotId: reservationDetails.lotName }
-      // );
-      // await ParkingLot.updateOne(
-      //   { name: reservationDetails.lotName },
-      //   { isReserved: true }
-      // );
+      await User.updateOne(
+        { _id: userId },
+        { reservedParkingLotId: reservationDetails.lotName }
+      );
+      await ParkingLot.updateOne(
+        { name: reservationDetails.lotName },
+        { isReserved: true }
+      );
 
       return res.json({ data: reservationDetails, message: "success" });
     }
   } catch (error) {
     console.log("error");
+  }
+});
+
+app.get("/retrieveCancelledReservation", cors(), async (req, res) => {
+  try {
+    const cancelled = await Reservation.find({ approvalStatus: "CANCELLED" });
+    res.status(200).json(cancelled);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ error: "Failed to retrieve cancelled reservations" });
+  }
+});
+
+app.get("/retrieveUserReservationStatus", cors(), async (req, res) => {
+  const userId = req.query.value;
+  // const userId = "649a40ccdd87d7997bf6247d";
+  try {
+    const user = await User.findOne({ _id: userId });
+    const reservationStatus = await Reservation.findOne({ user_id: userId });
+    console.log("here", user);
+    if (
+      user.reservedParkingLot != "" &&
+      reservationStatus.approvalStatus == "APPROVED"
+    ) {
+      res
+        .status(200)
+        .json({ message: "approved", data: reservationStatus.parkingLotName });
+    } else if (
+      user.reservedParkingLot == "" &&
+      reservationStatus.approvalStatus == "REJECTED"
+    ) {
+      res
+        .status(200)
+        .json({ message: "rejected", data: reservationStatus.parkingLotName });
+    }
+  } catch (error) {
+    res.status(500).json({ error });
   }
 });
 
@@ -349,7 +412,7 @@ app.get("/manageuser", cors(), async (req, res) => {
     const admin = await Admin.find({ _id: { $ne: objectIdToExclude } });
     res.status(200).json(admin);
   } catch (error) {
-    res.status(500).json({ error: "Failed to retrieve car park buildings" });
+    res.status(500).json({ error: "Failed to retrieve admin" });
   }
 });
 

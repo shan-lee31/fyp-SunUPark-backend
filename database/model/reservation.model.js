@@ -22,6 +22,10 @@ const reservationSchema = new Schema({
     type: String,
     default: "-",
   },
+  rejectReason: {
+    type: String,
+    default: "",
+  },
   isReserved: {
     type: Boolean,
     default: false,
