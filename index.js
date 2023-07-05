@@ -11,6 +11,7 @@ const ParkingBuilding = require("./database/model/parkingBuilding.model");
 const ParkingLot = require("./database/model/parkingLot.model");
 const User = require("./database/model/user.model");
 const Reservation = require("./database/model/reservation.model");
+const moment = require("moment");
 
 mongoose.connect(
   "mongodb+srv://lee:aUB9yJ4qxMDmjqnu@cluster-sunpark.ipsvmza.mongodb.net/test"
@@ -21,6 +22,49 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cors());
 let countReserveRequest = 0;
+const today = moment(new Date()).format("YYYY-MM-DD");
+
+const resetDuration = moment.duration(2, "minutes");
+
+const resetDatabase = async () => {
+  // Get the current time
+  const currentTime = moment();
+  // Calculate the reset time by adding the reset duration to the current time
+  const resetTime = moment(currentTime).add(resetDuration);
+  // Check if the current time has surpassed the reset time
+  console.log("reset", resetTime);
+  console.log("currenttime", currentTime);
+
+  await ParkingLot.updateMany({
+    isReserved: false,
+    isAvailable: true,
+  });
+  await User.updateMany({
+    parkingLotId: "",
+    reservedParkingLotId: "",
+  });
+  await Reservation.updateMany(
+    {
+      reservedAt: {
+        $regex: "^" + today,
+      },
+    },
+    {
+      approvalStatus: "OVERDUE",
+    }
+  );
+  console.log("Database value has been reset.");
+};
+
+function startResetInterval() {
+  // Call the function immediately for the first time
+  resetDatabase();
+
+  setInterval(resetDatabase, resetDuration.asMilliseconds());
+}
+
+// Start the interval
+//startResetInterval();
 
 const insertDefaultData = async () => {
   const defaultParkingBuilding = [
@@ -162,7 +206,13 @@ app.get("/availableReserveParkingLots", cors(), async (req, res) => {
       type: "reserveParking",
       isReserved: false,
     });
-    res.status(200).json(reservedParkingLots);
+    const rParkingLots = await ParkingLot.find({
+      type: "reserveParking",
+    });
+    res.status(200).json({
+      reservedParkingLots: reservedParkingLots,
+      rParkingLots: rParkingLots,
+    });
   } catch (error) {
     res.status(500).json({ error: "Failed to retrieve car park lots" });
   }
@@ -179,16 +229,18 @@ app.get("/parkingLotsStatus", cors(), async (req, res) => {
   }
 });
 
-app.post("/cancelReservation", async (req, res) => {
-  const reservationDetails = req.body.value;
-  console.log(reservationDetails);
+app.post("/cancelReservation", cors(), async (req, res) => {
+  const value = req.body.lot;
+  const userId = req.body.userId;
+  console.log("cancel", value, userId);
   try {
     const isExist = await Reservation.findOne({
-      parkingLotName: reservationDetails,
+      parkingLotName: value,
+      user_id: userId,
     });
     if (isExist) {
       await Reservation.updateOne(
-        { parkingLotName: reservationDetails },
+        { user_id: userId },
         { approvalStatus: "CANCELLED", isReserved: false }
       );
       return res.json({ message: "cancelled" });
@@ -261,25 +313,31 @@ app.get("/retrieveCancelledReservation", cors(), async (req, res) => {
 
 app.get("/retrieveUserReservationStatus", cors(), async (req, res) => {
   const userId = req.query.value;
-  // const userId = "649a40ccdd87d7997bf6247d";
+  //const lot = req.query.value2;
+  // console.log(userId);
   try {
     const user = await User.findOne({ _id: userId });
-    const reservationStatus = await Reservation.findOne({ user_id: userId });
-    console.log("here", user);
-    if (
-      user.reservedParkingLot != "" &&
-      reservationStatus.approvalStatus == "APPROVED"
-    ) {
+    const reservationStatus = await Reservation.findOne({
+      user_id: userId,
+      reservedAt: {
+        $regex: "^" + today,
+      },
+      //parkingLotName: lot,
+    });
+    console.log("here", reservationStatus);
+    if (reservationStatus.approvalStatus == "APPROVED") {
+      console.log("approved");
       res
         .status(200)
-        .json({ message: "approved", data: reservationStatus.parkingLotName });
-    } else if (
-      user.reservedParkingLot == "" &&
-      reservationStatus.approvalStatus == "REJECTED"
-    ) {
-      res
-        .status(200)
-        .json({ message: "rejected", data: reservationStatus.parkingLotName });
+        .json({ message: "APPROVED", data: reservationStatus.parkingLotName });
+    }
+    if (reservationStatus.approvalStatus == "REJECTED") {
+      console.log("rejection logic");
+      res.status(200).json({ message: "rejected", data: reservationStatus });
+    }
+    if (reservationStatus.approvalStatus == "pending") {
+      console.log("pending");
+      res.status(200).json({ message: "pending", data: reservationStatus });
     }
   } catch (error) {
     res.status(500).json({ error });
@@ -288,8 +346,21 @@ app.get("/retrieveUserReservationStatus", cors(), async (req, res) => {
 
 app.get("/retrieveApprovedReservation", cors(), async (req, res) => {
   try {
-    const approved = await Reservation.find({ approvalStatus: "APPROVED" });
+    const approved = await Reservation.find({
+      approvalStatus: "APPROVED",
+    }).sort({ reservedAt: 1 });
     res.status(200).json(approved);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to retrieve reservations" });
+  }
+});
+
+app.get("/retrieveOverdueReservation", cors(), async (req, res) => {
+  try {
+    const overdue = await Reservation.find({
+      approvalStatus: "OVERDUE",
+    }).sort({ reservedAt: 1 });
+    res.status(200).json(overdue);
   } catch (error) {
     res.status(500).json({ error: "Failed to retrieve reservations" });
   }
@@ -316,26 +387,35 @@ app.get("/retrieveReservation", cors(), async (req, res) => {
 
 app.post("/reservation", cors(), async (req, res) => {
   const details = req.body.allReservationDetails;
-  console.log(details);
+  console.log("details", details.email);
   const data = new Reservation({
     user_id: details.id,
+    user_email: details.email,
     approvalStatus: details.chosenLotStatus,
     reservedAt: details.reservedAt,
     user: details.studentName,
-    carPlate: details.carPlate,
+    carPlate: details.studentCarPlate,
     parkingLotName: details.chosenLot,
   });
+  console.log("data", data);
   try {
-    const isExist = await ParkingLot.findOne({
+    const isLotExist = await ParkingLot.findOne({
       name: details.chosenLot,
     });
-    console.log(isExist);
-    if (isExist) {
-      await data.save();
-      res.json("updated");
+    const isUserExist = await Reservation.findOne({
+      user_id: user_id,
+    });
+
+    if (isUserExist) {
+      res.json({ message: "has reservation", data: isUserExist });
     } else {
-      console.log("error");
-      return res.json({ message: "failed" });
+      if (isLotExist) {
+        await data.save();
+        res.json("updated");
+      } else {
+        console.log("error");
+        return res.json({ message: "failed" });
+      }
     }
   } catch (error) {
     console.log(error);
@@ -344,16 +424,22 @@ app.post("/reservation", cors(), async (req, res) => {
 });
 
 app.post("/parkingQrCode/endSession", cors(), async (req, res) => {
-  const lotId = req.body.parkingLot;
-  console.log(lotId);
+  const lotName = req.body.parkingLot;
+  const userId = req.body.userId;
+  console.log(lotName);
   try {
-    const isExist = await ParkingLot.findOne({ _id: lotId });
+    const isExist = await ParkingLot.findOne({ name: lotName });
     if (!isExist) {
       console.log("not exist");
       return res.status(404).json({ error: "Record not found" });
     } else {
       //update lot availability
-      await ParkingLot.findByIdAndUpdate(lotId, { isAvailable: true });
+      await ParkingLot.findOneAndUpdate(
+        { name: lotName },
+        { isAvailable: true }
+      );
+      //update User
+      await User.findOneAndUpdate({ _id: userId }, { parkingLotId: "" });
       return res.json({ message: "success" });
     }
   } catch (err) {
@@ -363,6 +449,7 @@ app.post("/parkingQrCode/endSession", cors(), async (req, res) => {
 
 app.post("/parkingQrCode/get", cors(), async (req, res) => {
   const lotId = req.body.parkingLot;
+  const userId = req.body.userId;
   console.log(lotId);
   try {
     if (!mongoose.Types.ObjectId.isValid(lotId)) {
@@ -375,8 +462,13 @@ app.post("/parkingQrCode/get", cors(), async (req, res) => {
     } else {
       if (await ParkingLot.findOne({ _id: lotId, isAvailable: false })) {
         return res.json({ message: "occupied" });
-      } else await ParkingLot.findByIdAndUpdate(lotId, { isAvailable: false });
-      return res.json({ message: "success", lot: isExist.name });
+      } else {
+        await ParkingLot.findByIdAndUpdate(lotId, { isAvailable: false });
+        await User.findByIdAndUpdate(userId, { parkingLotId: isExist.name });
+        {
+          return res.json({ message: "success", lot: isExist.name });
+        }
+      }
     }
   } catch (err) {
     console.error(error);
@@ -497,7 +589,7 @@ app.post("/updateCarParkInfo", async (req, res) => {
 
 app.post("/update-user-info", async (req, res) => {
   const updateForm = req.body.editForm;
-  console.log(updateForm);
+  console.log("update", updateForm);
   try {
     const isExist = await User.findOne({ email: updateForm.email });
     console.log(isExist);
@@ -566,7 +658,7 @@ app.post("/login/user", async (req, res) => {
         carPlate: isCheck.carPlate,
         parkingLot: isCheck.parkingLotId,
         phone: isCheck.phoneNumber,
-        reservedParkingLotId: isCheck.parkingLotId,
+        reservedParkingLotId: isCheck.reservedParkingLotId,
         message: "LoginPass",
       });
       console.log(isCheck.name);

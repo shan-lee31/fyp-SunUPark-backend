@@ -12,6 +12,9 @@ const reservationSchema = new Schema({
   user: {
     type: String,
   },
+  user_email: {
+    type: String,
+  },
   reservedAt: {
     type: String,
   },
