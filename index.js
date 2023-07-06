@@ -24,7 +24,7 @@ app.use(cors());
 let countReserveRequest = 0;
 const today = moment(new Date()).format("YYYY-MM-DD");
 
-const resetDuration = moment.duration(2, "minutes");
+const resetDuration = moment.duration(10, "minutes");
 
 const resetDatabase = async () => {
   // Get the current time
@@ -46,11 +46,12 @@ const resetDatabase = async () => {
   await Reservation.updateMany(
     {
       reservedAt: {
-        $regex: "^" + today,
+        $lt: today,
       },
     },
     {
       approvalStatus: "OVERDUE",
+      isReserved: false,
     }
   );
   console.log("Database value has been reset.");
@@ -274,14 +275,27 @@ app.post("/rejectReservation", async (req, res) => {
 app.post("/approveReservation", async (req, res) => {
   const reservationDetails = req.body.selectedReservation;
   const userId = reservationDetails.user_id;
-  console.log(reservationDetails);
+  console.log("reservationDetails", reservationDetails);
   try {
     const isExist = await Reservation.findOne({
+      user_id: reservationDetails.user_id,
       parkingLotName: reservationDetails.lotName,
+      approvalStatus: "pending",
+      reservedAt: {
+        $regex: "^" + today,
+      },
     });
+    console.log("isExist", isExist);
     if (isExist) {
-      await Reservation.updateOne(
-        { parkingLotName: reservationDetails.lotName },
+      await Reservation.findOneAndUpdate(
+        {
+          user_id: reservationDetails.user_id,
+          parkingLotName: reservationDetails.lotName,
+          approvalStatus: "pending",
+          reservedAt: {
+            $regex: "^" + today,
+          },
+        },
         { approvalStatus: "APPROVED", isReserved: true }
       );
       await User.updateOne(
@@ -313,6 +327,7 @@ app.get("/retrieveCancelledReservation", cors(), async (req, res) => {
 
 app.get("/retrieveUserReservationStatus", cors(), async (req, res) => {
   const userId = req.query.value;
+  console.log("user reservation staatus");
   //const lot = req.query.value2;
   // console.log(userId);
   try {
@@ -403,13 +418,20 @@ app.post("/reservation", cors(), async (req, res) => {
       name: details.chosenLot,
     });
     const isUserExist = await Reservation.findOne({
-      user_id: user_id,
+      user_id: details.id,
+      reservedAt: {
+        $regex: "^" + today,
+      },
+      approvalStatus: {
+        $in: ["pending", "APPROVED", "REJECTED"],
+      },
     });
-
+    console.log(isLotExist, isUserExist);
     if (isUserExist) {
       res.json({ message: "has reservation", data: isUserExist });
     } else {
       if (isLotExist) {
+        console.log(isLotExist);
         await data.save();
         res.json("updated");
       } else {
@@ -595,11 +617,14 @@ app.post("/update-user-info", async (req, res) => {
     console.log(isExist);
 
     if (isExist) {
-      await User.updateOne({
-        name: updateForm.name,
-        carPlate: updateForm.carPlate,
-        phoneNumber: updateForm.phoneNumber,
-      });
+      await User.updateOne(
+        { email: updateForm.email },
+        {
+          name: updateForm.name,
+          carPlate: updateForm.carPlate,
+          phoneNumber: updateForm.phoneNumber,
+        }
+      );
       res.json({ message: "updateCarParkSuccess" });
     } else {
       res.json("error");
@@ -640,16 +665,28 @@ app.post("/login", async (req, res) => {
 
 app.post("/login/user", async (req, res) => {
   const loginForm = req.body.form;
+  let pendingPL;
   console.log(loginForm.email);
   try {
     const isCheck = await User.findOne({ email: loginForm.email });
     console.log(isCheck, isCheck);
+    const getPending = await Reservation.findOne({
+      user_id: isCheck._id,
+      reservedAt: { $regex: "^" + today },
+      approvalStatus: "pending",
+    });
     const isCompare = await comparePassword(
       loginForm.password,
       isCheck.password
     );
 
     if (isCheck && isCompare) {
+      console.log("getPending", getPending);
+      if (getPending) {
+        pendingPL = getPending.parkingLotName;
+      } else {
+        pendingPL = "";
+      }
       res.json({
         id: isCheck._id,
         email: isCheck.email,
@@ -658,6 +695,7 @@ app.post("/login/user", async (req, res) => {
         carPlate: isCheck.carPlate,
         parkingLot: isCheck.parkingLotId,
         phone: isCheck.phoneNumber,
+        pendingParkingLot: pendingPL,
         reservedParkingLotId: isCheck.reservedParkingLotId,
         message: "LoginPass",
       });
