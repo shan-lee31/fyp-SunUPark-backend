@@ -254,15 +254,21 @@ app.post("/cancelReservation", cors(), async (req, res) => {
 app.post("/rejectReservation", async (req, res) => {
   const reservationDetails = req.body.selectedReservation;
   const reason = req.body.rejectForm.reason;
-  console.log(reason);
+  console.log(reservationDetails);
   try {
     const isExist = await Reservation.findOne({
       parkingLotName: reservationDetails.lotName,
+      user_email: reservationDetails.email,
     });
+
+    console.log("reject", isExist);
     if (isExist) {
       console.log(isExist);
       await Reservation.updateOne(
-        { parkingLotName: reservationDetails.lotName },
+        {
+          parkingLotName: reservationDetails.lotName,
+          user_email: reservationDetails.email,
+        },
         { approvalStatus: "REJECTED", isReserved: false, rejectReason: reason }
       );
       return res.json({ data: reservationDetails, message: "rejected" });
