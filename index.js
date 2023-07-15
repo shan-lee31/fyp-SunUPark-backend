@@ -14,7 +14,7 @@ const Reservation = require("./database/model/reservation.model");
 const moment = require("moment");
 
 mongoose.connect(
-  "mongodb+srv://lee:aUB9yJ4qxMDmjqnu@cluster-sunpark.ipsvmza.mongodb.net/test"
+  "mongodb+srv://lee:aUB9yJ4qxMDmjqnu@cluster-sunpark.ipsvmza.mongodb.net/?retryWrites=true&w=majority"
 );
 
 const app = express();
@@ -24,7 +24,7 @@ app.use(cors());
 let countReserveRequest = 0;
 const today = moment(new Date()).format("YYYY-MM-DD");
 
-const resetDuration = moment.duration(10, "minutes");
+const resetDuration = moment.duration(10, "seconds");
 
 const resetDatabase = async () => {
   // Get the current time
@@ -202,17 +202,19 @@ app.get("/get-admin-home-data", cors(), async (req, res) => {
 });
 
 app.get("/availableReserveParkingLots", cors(), async (req, res) => {
+  // console.log("hey");
+  const reservedParkingLots = await ParkingLot.find({
+    isReserved: false,
+    type: "reserveParking",
+  });
+  const rParkingLots = await ParkingLot.find({
+    type: "reserveParking",
+  });
+  // console.log(reservedParkingLots);
   try {
-    const reservedParkingLots = await ParkingLot.find({
-      type: "reserveParking",
-      isReserved: false,
-    });
-    const rParkingLots = await ParkingLot.find({
-      type: "reserveParking",
-    });
     res.status(200).json({
-      reservedParkingLots: reservedParkingLots,
-      rParkingLots: rParkingLots,
+      message1: reservedParkingLots,
+      message2: rParkingLots,
     });
   } catch (error) {
     res.status(500).json({ error: "Failed to retrieve car park lots" });
@@ -343,7 +345,7 @@ app.get("/retrieveUserReservationStatus", cors(), async (req, res) => {
       reservedAt: {
         $regex: "^" + today,
       },
-      //parkingLotName: lot,
+      parkingLotName: lot,
     });
     console.log("here", reservationStatus);
     if (reservationStatus.approvalStatus == "APPROVED") {
@@ -407,7 +409,7 @@ app.get("/retrieveReservation", cors(), async (req, res) => {
 });
 
 app.post("/reservation", cors(), async (req, res) => {
-  const details = req.body.allReservationDetails;
+  const details = req.body.reservationDetails;
   console.log("details", details.email);
   const data = new Reservation({
     user_id: details.id,
